@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "PentungScore",
+    "slug": "pentungscore",
+    "version": "1.0.0",
+    "scheme": "pentungscore",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "PentungScore memakai kamera untuk foto profil pemain.",
+        "NSPhotoLibraryUsageDescription": "PentungScore memakai galeri untuk foto profil pemain."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#101415",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#101415",
+          "image": "./assets/icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-font",
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PentungScore memakai galeri untuk foto profil pemain.",
+          "cameraPermission": "PentungScore memakai kamera untuk foto profil pemain."
+        }
+      ]
+    ]
+  }
+}

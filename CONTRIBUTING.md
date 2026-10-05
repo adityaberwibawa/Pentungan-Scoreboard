@@ -29,7 +29,42 @@ Alur kerja: **branch + pull request (PR)**. Tidak ada push langsung ke `master`
    Di halaman PR tulis: apa yang diubah + cara menguji.
 5. Minta review rekan → setelah **Approve**, merge dengan **Squash and merge**
    (riwayat `master` tetap satu baris rapi per fitur) → hapus branch.
+   Pengecualian untuk PR tugas kuliah: lihat "Aturan Tugas Kelompok" di bawah
+   (merge commit, branch jangan dihapus).
 6. PR tertinggal dari `master`? Klik **Update branch** di halaman PR GitHub.
+
+## Aturan Tugas Kelompok (materi kuliah)
+
+Setiap pertemuan ada materi yang sama dan setiap anggota wajib praktik.
+Yang dinilai dosen adalah **partisipasi tiap anggota di tiap materi**
+(bukan siapa yang di-merge), sedangkan ketua kelompok memilih **satu versi
+terbaik** untuk di-merge ke `master`. Aturan berikut melengkapi alur di atas.
+
+1. **Satu orang satu branch per materi.** Format:
+   ```bash
+   git checkout -b nama/fitur/materi   # contoh: bowo/fitur/auth
+   ```
+   Jangan push ke branch orang lain, jangan force-push ke branch orang lain.
+2. **Definisi "mencoba".** Setiap branch materi wajib berisi:
+   - Minimal 3–4 commit atomik mengikuti progres sub-materi
+     (bukan satu commit besar di akhir),
+   - Commit dari akun git masing-masing (`git config user.name` /
+     `user.email` wajib milik sendiri),
+   - 1 PR ke `master` (draft/WIP boleh) dengan template:
+     spek materi, yang sudah jalan, yang belum jalan,
+     hasil `bunx tsc --noEmit` + `bunx jest`.
+3. **Merge PR tugas: merge commit, bukan squash.** Riwayat commit per orang
+   harus utuh agar jejak kontribusi tiap anggota terbaca.
+   (PR non-tugas tetap squash sesuai alur harian.)
+4. **Branch yang tidak terpilih jangan dihapus** sampai nilai keluar —
+   branch + commit + PR tersebut adalah bukti kontribusi ke dosen.
+5. **Peran ketua kelompok:**
+   - Bandingkan PR tiap anggota secara adil (kode + hasil uji jalan),
+   - Merge 1 versi terbaik ke `master`,
+   - Lindungi branch yang kalah (jangan dihapus, jangan di-squash),
+   - Bantu anggota yang stuck sampai bisa push versinya sendiri —
+     versi belum sempurna tetap sah sebagai bukti mencoba dan tidak
+     merusak `master` karena yang di-merge tetap versi terbaik.
 
 ## Sebelum buka PR (wajib lolos, dari root repo)
 

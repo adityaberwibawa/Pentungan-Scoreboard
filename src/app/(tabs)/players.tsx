@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../../components/AppButton';
@@ -239,6 +240,19 @@ export default function PlayersScreen() {
               ))}
             </View>
           )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Buka pengaturan keamanan"
+            accessibilityHint="Ubah PIN, biometrik, dan reset data"
+            onPress={() => router.push('/security')}
+            style={styles.securityCard}>
+            <MaterialIcons name="lock-outline" size={22} color={Colors.accent} />
+            <View style={styles.securityText}>
+              <Text style={styles.securityTitle}>Keamanan</Text>
+              <Text style={styles.securitySub}>PIN, biometrik & reset data</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={22} color={Colors.muted} />
+          </Pressable>
         </View>
       </ScrollView>
       <AvatarPicker
@@ -368,6 +382,19 @@ const styles = StyleSheet.create({
   dealerActive: { color: Colors.gold, fontFamily: FontFamily.bodySemi },
   stats: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 12 },
   actions: { flexDirection: 'row', alignItems: 'center' },
+  securityCard: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  securityText: { flex: 1 },
+  securityTitle: { color: Colors.ink, fontFamily: FontFamily.bodySemi, fontSize: 15 },
+  securitySub: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 12, marginTop: 2 },
   iconBtn: {
     width: MIN_TOUCH,
     height: MIN_TOUCH,

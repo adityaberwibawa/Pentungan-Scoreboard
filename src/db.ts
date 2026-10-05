@@ -302,3 +302,12 @@ export async function deleteSessionRow(sessionId: string): Promise<void> {
   await db.runAsync('DELETE FROM participants WHERE session_id = ?', sessionId);
   await db.runAsync('DELETE FROM sessions WHERE id = ?', sessionId);
 }
+
+/** Hapus seluruh data lokal (dipakai untuk Reset saat lupa PIN). */
+export async function wipeAllData(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM rounds');
+  await db.runAsync('DELETE FROM participants');
+  await db.runAsync('DELETE FROM sessions');
+  await db.runAsync('DELETE FROM players');
+}

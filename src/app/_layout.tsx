@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
-import { router, SplashScreen, Stack, useSegments } from 'expo-router';
+import { router, SplashScreen, Stack, useRootNavigationState, useSegments } from 'expo-router';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -27,6 +27,8 @@ export default function RootLayout() {
   const ready = useStore((s) => s.ready);
   const loadAll = useStore((s) => s.loadAll);
   const segments = useSegments();
+  const navReady = useRootNavigationState()?.key;
+  const segKey = segments.join('/');
   const authInit = useAuth((s) => s.init);
   const authReady = useAuth((s) => s.initialized);
   const hasPin = useAuth((s) => s.hasPin);
@@ -51,16 +53,17 @@ export default function RootLayout() {
   }, [markBackground, checkAutoLock]);
 
   useEffect(() => {
-    if (!authReady || !ready) return;
-    const inAuth = segments[0] === '(auth)';
-    if (!hasPin && !inAuth) {
-      router.replace('/(auth)/setup');
-    } else if (hasPin && locked && !inAuth) {
-      router.replace('/(auth)/unlock');
-    } else if (!locked && inAuth) {
+    if (!authReady || !ready || !navReady) return;
+    const group = segments[0];
+    const screen = segments.at(1);
+    if (!hasPin) {
+      if (screen !== 'setup') router.replace('/(auth)/setup');
+    } else if (locked) {
+      if (screen !== 'unlock') router.replace('/(auth)/unlock');
+    } else if (group === '(auth)') {
       router.replace('/(tabs)');
     }
-  }, [authReady, ready, hasPin, locked, segments]);
+  }, [authReady, ready, navReady, hasPin, locked, segKey]);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && ready && authReady) {

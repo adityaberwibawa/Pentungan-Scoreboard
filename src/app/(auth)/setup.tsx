@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
 import { AppButton } from '../../components/AppButton';
 import { AppHeader } from '../../components/AppHeader';
 import { Colors, Common, FontFamily, MIN_TOUCH, Radius } from '../../theme';
@@ -35,7 +34,6 @@ export default function SetupScreen() {
       await setBioEnabled(true).catch(() => undefined);
     }
     setBusy(false);
-    router.replace('/(tabs)');
   };
 
   return (

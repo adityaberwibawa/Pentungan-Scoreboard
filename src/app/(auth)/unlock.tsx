@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
 import { AppButton } from '../../components/AppButton';
 import { AppHeader } from '../../components/AppHeader';
 import { Colors, Common, FontFamily, MIN_TOUCH, Radius } from '../../theme';
@@ -40,7 +39,6 @@ export default function UnlockScreen() {
       return;
     }
     setBusy(false);
-    router.replace('/(tabs)');
   };
 
   const submitBio = async () => {
@@ -51,9 +49,7 @@ export default function UnlockScreen() {
     setBusy(false);
     if (err) {
       setError(err);
-      return;
     }
-    router.replace('/(tabs)');
   };
 
   const askReset = () => {
@@ -67,7 +63,6 @@ export default function UnlockScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetAppAuth();
-            router.replace('/(auth)/setup');
           },
         },
       ],

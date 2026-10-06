@@ -9,9 +9,13 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "PentungScore memakai kamera untuk foto profil pemain.",
-        "NSPhotoLibraryUsageDescription": "PentungScore memakai galeri untuk foto profil pemain."
+        "NSPhotoLibraryUsageDescription": "PentungScore memakai galeri untuk foto profil pemain.",
+        "NSFaceIDUsageDescription": "PentungScore memakai Face ID agar hanya pemilik perangkat yang bisa membuka data permainan."
       }
     },
     "android": {
@@ -19,7 +23,11 @@
         "backgroundColor": "#101415",
         "foregroundImage": "./assets/icon.png"
       },
-      "permissions": ["CAMERA"]
+      "allowBackup": false,
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -38,6 +46,19 @@
         {
           "photosPermission": "PentungScore memakai galeri untuk foto profil pemain.",
           "cameraPermission": "PentungScore memakai kamera untuk foto profil pemain."
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "PentungScore memakai Face ID agar hanya pemilik perangkat yang bisa membuka data permainan."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "PentungScore memakai Face ID agar hanya pemilik perangkat yang bisa membuka data permainan."
         }
       ]
     ]

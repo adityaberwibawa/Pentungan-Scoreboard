@@ -4,6 +4,9 @@ import * as ImagePicker from 'expo-image-picker';
 
 export type PhotoSource = 'camera' | 'gallery';
 
+/** Batas ukuran foto sumber agar tidak penuhi sandbox (5 MB). */
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
 export async function pickAndPersistPhoto(
   source: PhotoSource,
 ): Promise<{ uri?: string; denied?: boolean; error?: string }> {
@@ -25,6 +28,11 @@ export async function pickAndPersistPhoto(
     });
     if (result.canceled || result.assets.length === 0) return {};
     const srcUri = result.assets[0].uri;
+    if (!srcUri.startsWith('file://') && !srcUri.startsWith('content://')) return {};
+    const info = await FileSystem.getInfoAsync(srcUri).catch(() => null);
+    if (info?.exists && typeof info.size === 'number' && info.size > MAX_PHOTO_BYTES) {
+      return { error: 'Foto terlalu besar. Maksimal 5 MB.' };
+    }
     const fileName = `avatar-${Date.now()}.jpg`;
     const destUri = `${FileSystem.documentDirectory}avatars/${fileName}`;
     await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}avatars`, {

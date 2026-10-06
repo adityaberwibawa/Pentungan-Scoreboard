@@ -24,6 +24,7 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync('pentungscore.db').then(async (db) => {
       await db.execAsync('PRAGMA journal_mode = WAL;');
+      await db.execAsync('PRAGMA secure_delete = ON;');
       await migrate(db);
       return db;
     });

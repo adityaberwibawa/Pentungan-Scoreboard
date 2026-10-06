@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { SplashScreen, Stack } from 'expo-router';
+import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
+import { router, SplashScreen, Stack, useSegments } from 'expo-router';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -12,6 +12,7 @@ import { SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../theme';
 import { useStore } from '../store';
+import { useAuth } from '../auth/useAuth';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -25,18 +26,49 @@ export default function RootLayout() {
   });
   const ready = useStore((s) => s.ready);
   const loadAll = useStore((s) => s.loadAll);
+  const segments = useSegments();
+  const authInit = useAuth((s) => s.init);
+  const authReady = useAuth((s) => s.initialized);
+  const hasPin = useAuth((s) => s.hasPin);
+  const locked = useAuth((s) => s.locked);
+  const markBackground = useAuth((s) => s.markBackground);
+  const checkAutoLock = useAuth((s) => s.checkAutoLock);
 
   useEffect(() => {
     loadAll().catch(() => undefined);
   }, [loadAll]);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && ready) {
+    authInit().catch(() => undefined);
+  }, [authInit]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') markBackground();
+      if (state === 'active') checkAutoLock();
+    });
+    return () => sub.remove();
+  }, [markBackground, checkAutoLock]);
+
+  useEffect(() => {
+    if (!authReady || !ready) return;
+    const inAuth = segments[0] === '(auth)';
+    if (!hasPin && !inAuth) {
+      router.replace('/(auth)/setup');
+    } else if (hasPin && locked && !inAuth) {
+      router.replace('/(auth)/unlock');
+    } else if (!locked && inAuth) {
+      router.replace('/(tabs)');
+    }
+  }, [authReady, ready, hasPin, locked, segments]);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && ready && authReady) {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [fontsLoaded, fontError, ready]);
+  }, [fontsLoaded, fontError, ready, authReady]);
 
-  if ((!fontsLoaded && !fontError) || !ready) {
+  if ((!fontsLoaded && !fontError) || !ready || !authReady) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator
@@ -58,6 +90,7 @@ export default function RootLayout() {
           animation: 'slide_from_right',
         }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" />
         <Stack.Screen
           name="create"
           options={{ presentation: 'card', gestureEnabled: true }}

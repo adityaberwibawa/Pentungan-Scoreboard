@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
@@ -19,15 +20,19 @@ import { AppHeader } from '../../components/AppHeader';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { EmptyState } from '../../components/EmptyState';
 import { PlayerAvatar } from '../../components/PlayerAvatar';
-import { RankBadge } from '../../components/RankBadge';
 import { RankingModal } from '../../components/RankingModal';
 import { ScoreModal } from '../../components/ScoreModal';
-import { Colors, Common, FontFamily, MIN_TOUCH, Radius, Soft } from '../../theme';
+import { Colors, Common, FontFamily, MAX_CONTENT_WIDTH, MIN_TOUCH, Radius, Soft } from '../../theme';
 import { ranking, totals } from '../../scoring';
 import { playerName, useStore } from '../../store';
 
-const ROW_H = 46;
-const LABEL_W = 52;
+const ROW_H = 48;
+const HEAD_H = 80;
+const MAX_VISIBLE_ROWS = 7;
+const LABEL_W = 48;
+const TABLE_MARGIN = 24;
+const MIN_COL_W = 84;
+const MAX_COL_W = 140;
 
 interface EditTarget {
   roundNumber: number | null;
@@ -53,6 +58,7 @@ export default function GameScreen() {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const labelScroll = useRef<ScrollView>(null);
+  const { width: windowWidth } = useWindowDimensions();
 
   useFocusEffect(
     useCallback(() => {
@@ -102,7 +108,20 @@ export default function GameScreen() {
     );
   }
 
-  const colWidth = Math.max(76, 280 / Math.max(1, activeParts.length));
+  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const available = Math.max(0, contentWidth - LABEL_W - TABLE_MARGIN);
+  const isWide = windowWidth >= 720;
+  const minCol = isWide ? 104 : MIN_COL_W;
+  const maxCol = isWide ? 180 : MAX_COL_W;
+  const evenCol = available / Math.max(1, activeParts.length);
+  const colWidth = Math.floor(Math.min(maxCol, Math.max(minCol, evenCol)));
+  const totalGridWidth = activeParts.length * colWidth;
+  const lastRound = session.rounds.reduce((m, r) => Math.max(m, r.roundNumber), 0);
+
+  const visibleRows = Math.min(Math.max(session.rounds.length, 1), MAX_VISIBLE_ROWS);
+  const bodyMaxHeight = visibleRows * ROW_H;
+  const gridH = session.rounds.length === 0 ? 150 : bodyMaxHeight;
+  const tableMaxHeight = HEAD_H + gridH + 2;
 
   const openNewRound = () => setEditTarget({ roundNumber: null });
   const openEditCell = (roundNumber: number, playerId: string) =>
@@ -171,9 +190,9 @@ export default function GameScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Pemimpin ${leadPlayer.name}, ${lead.total} poin. Buka klasemen.`}
               onPress={() => setShowRanking(true)}
-              style={styles.leader}>
+              style={({ pressed }) => [styles.leader, pressed && styles.leaderPressed]}>
               <MaterialIcons name="emoji-events" size={18} color={Colors.gold} />
-              <Text style={styles.leaderText} numberOfLines={1}>
+              <Text style={styles.leaderText} numberOfLines={1} ellipsizeMode="tail">
                 {leadPlayer.name} ({lead.total})
               </Text>
             </Pressable>
@@ -192,100 +211,165 @@ export default function GameScreen() {
         </View>
       ) : null}
       <View style={styles.gridHint}>
-        <Text style={styles.gridHintText}>
-          {ongoing ? 'Ketuk sel ronde untuk ubah skor' : 'Mode lihat saja — sesi sudah selesai'}
-        </Text>
-        <Text style={styles.gridHintText}>{activeParts.length} Pemain</Text>
+        <View style={styles.gridHintLeft}>
+          <MaterialIcons name="touch-app" size={15} color={Colors.accent} />
+          <Text style={styles.gridHintText}>
+            {ongoing ? 'Ketuk sel ronde untuk edit skor' : 'Mode lihat saja — sesi sudah selesai'}
+          </Text>
+        </View>
+        <View style={styles.gridHintPill}>
+          <Text style={styles.gridHintPillText}>{activeParts.length} Pemain</Text>
+        </View>
       </View>
-      <View style={styles.table}>
-        <View style={styles.headRow}>
-          <View style={[styles.corner, { width: LABEL_W }]}>
-            <Text style={styles.cornerText}>Rnd</Text>
+      <View style={[styles.table, { maxHeight: tableMaxHeight }]}>
+        <View style={styles.mainRow}>
+          <View style={styles.leftCol}>
+            <View style={styles.corner}>
+              <Text style={styles.cornerTop}>Rnd</Text>
+              <Text style={styles.cornerText}>№</Text>
+            </View>
+            <ScrollView
+              ref={labelScroll}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+              style={{ width: LABEL_W, maxHeight: gridH }}>
+              {session.rounds.map((round) => {
+                const isLatest = round.roundNumber === lastRound;
+                return (
+                  <View key={round.roundNumber} style={styles.labelCell}>
+                    {isLatest ? <View style={styles.labelDot} /> : null}
+                    <Text style={[styles.labelText, isLatest && styles.labelTextLatest]}>
+                      R{round.roundNumber}
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
           </View>
-          <ScrollView horizontal scrollEnabled={false} showsHorizontalScrollIndicator={false}>
-            <View style={styles.headCols}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rightPane}>
+            <View style={{ width: totalGridWidth }}>
+              <View style={styles.headCols}>
               {activeParts.map((part) => {
                 const player = players.find((p) => p.id === part.playerId);
                 if (!player) return null;
                 const total = sessionTotals[part.playerId] ?? 0;
                 const rank = rankOf[part.playerId] ?? 99;
+                const isLead = rank === 1;
                 return (
                   <View
                     key={part.playerId}
                     accessible
                     accessibilityLabel={`${player.name}, total ${total} poin, peringkat ${rank}`}
                     style={[styles.headCell, { width: colWidth }]}>
-                    <Text style={styles.headName} numberOfLines={1}>
+                    <View style={styles.headAvatarWrap}>
+                      <PlayerAvatar name={player.name} avatar={player.avatar} size={24} />
+                      <View
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                        style={[
+                          styles.headRank,
+                          isLead ? styles.headRankFirst : styles.headRankRest,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.headRankText,
+                            isLead ? styles.headRankTextFirst : styles.headRankTextRest,
+                          ]}>
+                          #{rank}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.headName} numberOfLines={1} ellipsizeMode="tail">
                       {player.name}
                     </Text>
-                    <View style={styles.headMeta}>
-                      <RankBadge rank={rank} size={20} />
-                      <Text style={[styles.headTotal, rank === 1 && styles.headTotalFirst]}>
+                    <View style={[styles.headPill, isLead && styles.headPillFirst]}>
+                      <Text style={[styles.headTotal, isLead && styles.headTotalFirst]}>
                         {total}
                       </Text>
+                      <Text style={[styles.headPts, isLead && styles.headPtsFirst]}>pts</Text>
                     </View>
                   </View>
                 );
               })}
-            </View>
-          </ScrollView>
-        </View>
-        <View style={styles.bodyRow}>
-          <ScrollView
-            ref={labelScroll}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
-            style={{ width: LABEL_W }}>
-            {session.rounds.map((round) => (
-              <View key={round.roundNumber} style={styles.labelCell}>
-                <Text style={styles.labelText}>R{round.roundNumber}</Text>
               </View>
-            ))}
-          </ScrollView>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridScroll}>
-            <ScrollView
-              onScroll={syncLabels}
-              scrollEventThrottle={16}
-              showsVerticalScrollIndicator={false}>
-              {session.rounds.map((round) => {
-                const best = Math.max(
-                  ...activeParts.map((p) => round.scores[p.playerId] ?? 0),
-                );
-                return (
-                  <View key={round.roundNumber} style={styles.gridRow}>
-                    {activeParts.map((part) => {
-                      const value = round.scores[part.playerId] ?? 0;
-                      const isBest = value === best && activeParts.length > 1;
-                      const negative = value < 0;
-                      const name = playerName(players, part.playerId);
-                      return (
-                        <Pressable
-                          key={part.playerId}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Ronde ${round.roundNumber}, ${name}, skor ${value}${
-                            negative ? ', kena pentung' : ''
-                          }${isBest ? ', tertinggi ronde ini' : ''}${
-                            ongoing ? '. Ketuk untuk ubah.' : ''
-                          }`}
-                          disabled={!ongoing}
-                          onPress={() => openEditCell(round.roundNumber, part.playerId)}
-                          style={[styles.cell, { width: colWidth }]}>
+              <ScrollView
+                onScroll={syncLabels}
+                scrollEventThrottle={16}
+                showsVerticalScrollIndicator={false}
+                style={{ width: totalGridWidth, maxHeight: gridH }}>
+              {session.rounds.length === 0 ? (
+            <View style={styles.emptyGrid}>
+              <MaterialIcons name="touch-app" size={24} color={Colors.muted} />
+              <Text style={styles.emptyGridTitle}>Belum ada ronde</Text>
+              <Text style={styles.emptyGridText}>
+                {ongoing
+                  ? 'Ketuk tombol + di bawah untuk input skor ronde 1.'
+                  : 'Sesi ini belum memiliki skor.'}
+              </Text>
+            </View>
+          ) : (
+            session.rounds.map((round) => {
+              const best = Math.max(
+                ...activeParts.map((p) => round.scores[p.playerId] ?? 0),
+              );
+              const isLatest = round.roundNumber === lastRound;
+              return (
+                <View
+                  key={round.roundNumber}
+                  style={[
+                    styles.gridRow,
+                    round.roundNumber % 2 === 0 && styles.gridRowZebra,
+                    isLatest && styles.gridRowLatest,
+                  ]}>
+                  {activeParts.map((part) => {
+                    const value = round.scores[part.playerId] ?? 0;
+                    const isBest = value === best && activeParts.length > 1;
+                    const negative = value < 0;
+                    const isZero = value === 0;
+                    const name = playerName(players, part.playerId);
+                    return (
+                      <Pressable
+                        key={part.playerId}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ronde ${round.roundNumber}, ${name}, skor ${value}${
+                          negative ? ', kena pentung' : ''
+                        }${!negative && isBest ? ', tertinggi ronde ini' : ''}${
+                          ongoing ? '. Ketuk untuk ubah.' : ''
+                        }`}
+                        disabled={!ongoing}
+                        onPress={() => openEditCell(round.roundNumber, part.playerId)}
+                        style={({ pressed }) => [
+                          styles.cell,
+                          { width: colWidth },
+                          pressed && ongoing && styles.cellPressed,
+                          !ongoing && styles.cellDisabled,
+                        ]}>
+                        <View
+                          style={[
+                            styles.pill,
+                            !negative && isBest && styles.pillBest,
+                            negative && styles.pillMinus,
+                          ]}>
                           <Text
                             style={[
                               styles.cellText,
-                              isBest && styles.cellBest,
+                              !negative && isBest && styles.cellBest,
                               negative && styles.cellMinus,
+                              isZero && !isBest && styles.cellZero,
                             ]}>
                             {value > 0 ? `+${value}` : `${value}`}
                           </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                );
-              })}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })
+          )}
+              </ScrollView>
+            </View>
             </ScrollView>
-          </ScrollView>
         </View>
       </View>
       <View style={styles.legend}>
@@ -300,9 +384,10 @@ export default function GameScreen() {
         <Text style={styles.legendText}>{session.rounds.length} Ronde</Text>
       </View>
       {toast ? (
-        <Text accessibilityLiveRegion="polite" style={styles.toast}>
-          {toast}
-        </Text>
+        <View accessibilityLiveRegion="polite" style={styles.toastWrap}>
+          <MaterialIcons name="check-circle" size={16} color={Colors.accent} />
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
       ) : null}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
         <Pressable
@@ -532,8 +617,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: 10,
     minHeight: MIN_TOUCH,
-    maxWidth: 180,
+    maxWidth: '38%',
+    flexShrink: 1,
   },
+  leaderPressed: { opacity: 0.7 },
   leaderText: { color: Colors.gold, fontFamily: FontFamily.bodySemi, fontSize: 12, flexShrink: 1 },
   winnerBanner: {
     flexDirection: 'row',
@@ -551,10 +638,22 @@ const styles = StyleSheet.create({
   gridHint: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  gridHintText: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 12 },
+  gridHintText: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 12, flexShrink: 1 },
+  gridHintLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  gridHintPill: {
+    backgroundColor: Soft.accentSoft,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  gridHintPillText: { color: Colors.accent, fontFamily: FontFamily.bodyBold, fontSize: 11 },
   table: {
     marginHorizontal: 12,
     backgroundColor: Colors.card,
@@ -562,10 +661,16 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: Radius.lg,
     overflow: 'hidden',
-    maxHeight: '52%',
+    flexGrow: 0,
+    flexShrink: 1,
+    minHeight: 180,
   },
-  headRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Colors.border },
+  mainRow: { flexDirection: 'row' },
+  leftCol: { width: LABEL_W },
+  rightPane: { flex: 1 },
   corner: {
+    width: LABEL_W,
+    minHeight: HEAD_H,
     backgroundColor: Colors.base,
     alignItems: 'center',
     justifyContent: 'center',
@@ -573,25 +678,70 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: Colors.border,
   },
-  cornerText: { color: Colors.muted, fontFamily: FontFamily.bodyBold, fontSize: 11 },
-  headCols: { flexDirection: 'row', backgroundColor: Colors.base },
+  cornerText: { color: Colors.ink, fontFamily: FontFamily.display, fontSize: 12 },
+  cornerTop: { color: Colors.muted, fontFamily: FontFamily.bodyBold, fontSize: 9 },
+  headCols: {
+    flexDirection: 'row',
+    backgroundColor: Colors.base,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
   headCell: {
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    paddingVertical: 6,
     paddingHorizontal: 4,
     borderLeftWidth: 1,
     borderLeftColor: Colors.border,
     gap: 4,
+    minHeight: HEAD_H,
   },
-  headName: { color: Colors.ink, fontFamily: FontFamily.bodySemi, fontSize: 12 },
-  headMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headTotal: { color: Colors.ink, fontFamily: FontFamily.display, fontSize: 14 },
+  headAvatarWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  headRank: {
+    position: 'absolute',
+    top: -5,
+    right: -12,
+    borderRadius: Radius.full,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  headRankFirst: { backgroundColor: Colors.gold },
+  headRankRest: { backgroundColor: Colors.rank },
+  headRankText: { fontFamily: FontFamily.bodyBold, fontSize: 8 },
+  headRankTextFirst: { color: Colors.coal },
+  headRankTextRest: { color: Colors.ink },
+  headName: {
+    color: Colors.ink,
+    fontFamily: FontFamily.bodySemi,
+    fontSize: 12,
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
+  headPill: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 2,
+    backgroundColor: Colors.raised,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  headPillFirst: { backgroundColor: Soft.goldSoft, borderColor: Colors.gold },
+  headTotal: { color: Colors.ink, fontFamily: FontFamily.display, fontSize: 13 },
   headTotalFirst: { color: Colors.gold },
-  bodyRow: { flexDirection: 'row' },
+  headPts: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 8 },
+  headPtsFirst: { color: Colors.gold },
   labelCell: {
+    width: LABEL_W,
     height: ROW_H,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
     backgroundColor: Colors.card,
     borderRightWidth: 1,
     borderRightColor: Colors.border,
@@ -599,24 +749,60 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   labelText: { color: Colors.muted, fontFamily: FontFamily.bodyBold, fontSize: 12 },
-  gridScroll: { flex: 1 },
+  labelTextLatest: { color: Colors.gold },
+  labelDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.gold },
   gridRow: { flexDirection: 'row' },
+  gridRowZebra: { backgroundColor: 'rgba(255, 255, 255, 0.025)' },
+  gridRowLatest: { backgroundColor: Soft.goldSoft },
   cell: {
     height: ROW_H,
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
-    backgroundColor: Colors.raised,
     borderLeftWidth: 1,
     borderLeftColor: Colors.border,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
-  cellText: { color: Colors.ink, fontFamily: FontFamily.display, fontSize: 14 },
+  pill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.raised,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: Radius.sm,
+    paddingHorizontal: 2,
+  },
+  pillBest: { backgroundColor: Soft.goldSoft, borderColor: Colors.gold },
+  pillMinus: { backgroundColor: Soft.dangerSoft, borderColor: Colors.danger },
+  cellPressed: { opacity: 0.6 },
+  cellDisabled: { opacity: 0.85 },
+  cellText: { color: Colors.ink, fontFamily: FontFamily.display, fontSize: 13 },
   cellBest: { color: Colors.gold },
   cellMinus: { color: Colors.danger },
+  cellZero: { color: Colors.muted },
+  emptyGrid: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  emptyGridTitle: { color: Colors.ink, fontFamily: FontFamily.bodySemi, fontSize: 15 },
+  emptyGridText: {
+    color: Colors.muted,
+    fontFamily: FontFamily.body,
+    fontSize: 13,
+    textAlign: 'center',
+  },
   legend: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     justifyContent: 'space-between',
     paddingHorizontal: 18,
     paddingVertical: 8,
@@ -624,18 +810,26 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { color: Colors.muted, fontFamily: FontFamily.body, fontSize: 12 },
-  toast: {
+  toastWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginHorizontal: 16,
     marginTop: 4,
     backgroundColor: Colors.raised,
     borderWidth: 1,
     borderColor: Colors.accent,
+    borderRadius: Radius.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  toastText: {
     color: Colors.accent,
     fontFamily: FontFamily.bodyMedium,
     fontSize: 13,
-    borderRadius: Radius.md,
-    padding: 10,
     textAlign: 'center',
+    flexShrink: 1,
   },
   bottomBar: {
     flexDirection: 'row',
